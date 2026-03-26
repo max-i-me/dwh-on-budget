@@ -1,0 +1,13 @@
+# Core data pipeline dependencies
+dlt[duckdb]>=0.4.0
+dbt-duckdb>=1.7.0
+
+# Configuration and utilities
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# HTTP requests
+requests>=2.31.0
+
+# Optional: For better CLI experience
+rich>=13.0.0

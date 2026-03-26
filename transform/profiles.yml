@@ -1,0 +1,14 @@
+github_dwh:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '../duck.duckdb') }}"
+      schema: analytics
+      threads: 4
+    
+    prod:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', '../duck.duckdb') }}"
+      schema: analytics
+      threads: 8

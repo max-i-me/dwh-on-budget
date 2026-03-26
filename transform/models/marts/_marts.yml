@@ -1,0 +1,276 @@
+version: 2
+
+models:
+  - name: dim_repositories
+    description: "Repository dimension containing attributes and metadata for each GitHub repository"
+    columns:
+      - name: repo_key
+        description: "Surrogate key for repository dimension"
+        tests:
+          - unique
+          - not_null
+      - name: repository_id
+        description: "Natural key - GitHub repository ID"
+        tests:
+          - unique
+          - not_null
+      - name: repository_full_name
+        description: "Full repository name (owner/repo)"
+        tests:
+          - not_null
+      - name: repository_name
+        description: "Repository name"
+      - name: owner_login
+        description: "Repository owner username"
+      - name: primary_language
+        description: "Primary programming language"
+      - name: stargazers_count
+        description: "Number of stars (snapshot at load time)"
+      - name: forks_count
+        description: "Number of forks (snapshot at load time)"
+  
+  - name: dim_users
+    description: "User dimension containing GitHub users (contributors, authors, etc.)"
+    columns:
+      - name: user_key
+        description: "Surrogate key for user dimension"
+        tests:
+          - unique
+          - not_null
+      - name: user_id
+        description: "Natural key - GitHub user ID"
+        tests:
+          - unique
+          - not_null
+      - name: user_login
+        description: "GitHub username"
+        tests:
+          - not_null
+      - name: is_bot
+        description: "Flag indicating if user is a bot"
+        tests:
+          - not_null
+  
+  - name: dim_dates
+    description: "Date dimension for time-series analysis"
+    columns:
+      - name: date_key
+        description: "Surrogate key in YYYYMMDD format"
+        tests:
+          - unique
+          - not_null
+      - name: date
+        description: "Calendar date"
+        tests:
+          - unique
+          - not_null
+      - name: year
+        description: "Year"
+      - name: quarter
+        description: "Quarter (1-4)"
+      - name: month
+        description: "Month (1-12)"
+      - name: week_of_year
+        description: "Week number of the year"
+      - name: day_of_week
+        description: "Day of week (0=Sunday, 6=Saturday)"
+      - name: is_weekend
+        description: "Flag indicating weekend"
+  
+  - name: fct_pull_requests
+    description: "Pull request fact table with lifecycle metrics"
+    columns:
+      - name: pr_key
+        description: "Surrogate key for pull request"
+        tests:
+          - unique
+          - not_null
+      - name: pull_request_id
+        description: "Natural key - GitHub PR ID"
+        tests:
+          - unique
+          - not_null
+      - name: repo_key
+        description: "Foreign key to dim_repositories"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_repositories')
+              field: repo_key
+      - name: author_key
+        description: "Foreign key to dim_users"
+        tests:
+          - relationships:
+              to: ref('dim_users')
+              field: user_key
+      - name: created_date_key
+        description: "Foreign key to dim_dates for creation date"
+        tests:
+          - relationships:
+              to: ref('dim_dates')
+              field: date_key
+      - name: is_merged
+        description: "Whether the PR was merged"
+        tests:
+          - not_null
+      - name: time_to_merge_hours
+        description: "Hours from creation to merge"
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "time_to_merge_hours is not null"
+  
+  - name: fct_issues
+    description: "Issue fact table with lifecycle metrics"
+    columns:
+      - name: issue_key
+        description: "Surrogate key for issue"
+        tests:
+          - unique
+          - not_null
+      - name: issue_id
+        description: "Natural key - GitHub issue ID"
+        tests:
+          - unique
+          - not_null
+      - name: repo_key
+        description: "Foreign key to dim_repositories"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_repositories')
+              field: repo_key
+      - name: author_key
+        description: "Foreign key to dim_users"
+        tests:
+          - relationships:
+              to: ref('dim_users')
+              field: user_key
+      - name: time_to_close_hours
+        description: "Hours from creation to closure"
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: ">= 0"
+              config:
+                where: "time_to_close_hours is not null"
+  
+  - name: fct_commits
+    description: "Commit fact table"
+    columns:
+      - name: commit_key
+        description: "Surrogate key for commit"
+        tests:
+          - unique
+          - not_null
+      - name: commit_sha
+        description: "Natural key - Git commit SHA"
+        tests:
+          - unique
+          - not_null
+      - name: repo_key
+        description: "Foreign key to dim_repositories"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_repositories')
+              field: repo_key
+      - name: author_key
+        description: "Foreign key to dim_users"
+        tests:
+          - relationships:
+              to: ref('dim_users')
+              field: user_key
+  
+  - name: fct_stargazers
+    description: "Stargazer fact table for repository growth analysis"
+    columns:
+      - name: stargazer_key
+        description: "Surrogate key for stargazer event"
+        tests:
+          - unique
+          - not_null
+      - name: repo_key
+        description: "Foreign key to dim_repositories"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_repositories')
+              field: repo_key
+      - name: user_key
+        description: "Foreign key to dim_users"
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_users')
+              field: user_key
+      - name: starred_at
+        description: "Timestamp when star was added"
+        tests:
+          - not_null
+
+  - name: pr_cycle_time
+    description: "PR cycle time metrics aggregated by week and month"
+    columns:
+      - name: period_type
+        description: "Type of aggregation period (weekly or monthly)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['weekly', 'monthly']
+      - name: repository_name
+        description: "Repository name"
+        tests:
+          - not_null
+      - name: merged_pr_count
+        description: "Number of merged PRs in period"
+        tests:
+          - not_null
+      - name: median_days_to_merge
+        description: "Median days from PR creation to merge"
+      - name: p90_days_to_merge
+        description: "90th percentile days to merge"
+  
+  - name: contributor_engagement
+    description: "Contributor engagement metrics by month"
+    columns:
+      - name: repository_full_name
+        description: "Full repository name"
+        tests:
+          - not_null
+      - name: year
+        description: "Year"
+        tests:
+          - not_null
+      - name: month
+        description: "Month"
+        tests:
+          - not_null
+      - name: unique_contributors
+        description: "Count of unique contributors in period"
+        tests:
+          - not_null
+      - name: new_contributors
+        description: "Count of first-time contributors"
+      - name: returning_contributors
+        description: "Count of returning contributors"
+  
+  - name: release_velocity
+    description: "Release velocity and cadence metrics"
+    columns:
+      - name: period_type
+        description: "Type of aggregation period (monthly or quarterly)"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['monthly', 'quarterly']
+      - name: repository_name
+        description: "Repository name"
+        tests:
+          - not_null
+      - name: release_count
+        description: "Number of releases in period"
+        tests:
+          - not_null
+      - name: avg_days_between_releases
+        description: "Average days between consecutive releases"

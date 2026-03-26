@@ -1,0 +1,11 @@
+[runtime]
+log_level = "INFO"
+request_timeout = 60
+request_max_attempts = 5
+request_backoff_factor = 1.5
+
+[normalize]
+max_table_nesting = 1
+
+[normalize.data_writer]
+disable_compression = false

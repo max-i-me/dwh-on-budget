@@ -1,0 +1,239 @@
+version: 2
+
+sources:
+  - name: raw_github
+    description: "Raw data extracted from GitHub API via dlt"
+    database: main
+    schema: raw_github
+    
+    # Source freshness checks
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 72, period: hour}
+    
+    tables:
+      - name: repositories
+        description: "Repository metadata and statistics"
+        identifier: repositories
+        columns:
+          - name: id
+            description: "Unique repository ID"
+            tests:
+              - unique
+              - not_null
+      
+      - name: issues
+        description: "Issues (excluding pull requests)"
+        identifier: issues
+        loaded_at_field: updated_at
+        columns:
+          - name: id
+            description: "Unique issue ID"
+            tests:
+              - unique
+              - not_null
+      
+      - name: pull_requests
+        description: "Pull requests"
+        identifier: pull_requests
+        loaded_at_field: updated_at
+        columns:
+          - name: id
+            description: "Unique pull request ID"
+            tests:
+              - unique
+              - not_null
+      
+      - name: pr_reviews
+        description: "Pull request reviews"
+        identifier: pr_reviews
+        loaded_at_field: submitted_at
+        columns:
+          - name: id
+            description: "Unique review ID"
+            tests:
+              - unique
+              - not_null
+      
+      - name: issue_comments
+        description: "Comments on issues and pull requests"
+        identifier: issue_comments
+        loaded_at_field: updated_at
+        columns:
+          - name: id
+            description: "Unique comment ID"
+            tests:
+              - unique
+              - not_null
+      
+      - name: commits
+        description: "Repository commits"
+        identifier: commits
+        loaded_at_field: commit_date
+        columns:
+          - name: sha
+            description: "Commit SHA hash"
+            tests:
+              - not_null
+      
+      - name: releases
+        description: "Repository releases"
+        identifier: releases
+        loaded_at_field: published_at
+        columns:
+          - name: id
+            description: "Unique release ID"
+            tests:
+              - unique
+              - not_null
+      
+      - name: stargazers
+        description: "Users who starred the repository"
+        identifier: stargazers
+        loaded_at_field: starred_at
+        columns:
+          - name: user_id
+            description: "User who starred the repo"
+            tests:
+              - not_null
+      
+      - name: contributors
+        description: "Repository contributors"
+        identifier: contributors
+        columns:
+          - name: user_id
+            description: "Contributor user ID"
+            tests:
+              - not_null
+
+models:
+  - name: stg_repositories
+    description: "Cleaned and typed repository data"
+    columns:
+      - name: repository_id
+        description: "Unique repository identifier"
+        tests:
+          - unique
+          - not_null
+      - name: repository_name
+        description: "Repository name"
+        tests:
+          - not_null
+      - name: owner_login
+        description: "Repository owner username"
+        tests:
+          - not_null
+  
+  - name: stg_issues
+    description: "Cleaned issue data (excluding pull requests)"
+    columns:
+      - name: issue_id
+        description: "Unique issue identifier"
+        tests:
+          - unique
+          - not_null
+      - name: issue_number
+        description: "Issue number within repository"
+        tests:
+          - not_null
+      - name: repository_full_name
+        description: "Full repository name (owner/repo)"
+        tests:
+          - not_null
+  
+  - name: stg_pull_requests
+    description: "Cleaned pull request data"
+    columns:
+      - name: pull_request_id
+        description: "Unique pull request identifier"
+        tests:
+          - unique
+          - not_null
+      - name: pr_number
+        description: "PR number within repository"
+        tests:
+          - not_null
+      - name: is_merged
+        description: "Whether the PR was merged"
+        tests:
+          - not_null
+  
+  - name: stg_pr_reviews
+    description: "Cleaned pull request review data"
+    columns:
+      - name: review_id
+        description: "Unique review identifier"
+        tests:
+          - unique
+          - not_null
+      - name: pull_request_number
+        description: "Associated PR number"
+        tests:
+          - not_null
+      - name: reviewer_user_id
+        description: "User who submitted the review"
+        tests:
+          - not_null
+  
+  - name: stg_issue_comments
+    description: "Cleaned comment data"
+    columns:
+      - name: comment_id
+        description: "Unique comment identifier"
+        tests:
+          - unique
+          - not_null
+      - name: issue_number
+        description: "Associated issue/PR number"
+        tests:
+          - not_null
+  
+  - name: stg_commits
+    description: "Cleaned commit data"
+    columns:
+      - name: commit_sha
+        description: "Unique commit SHA"
+        tests:
+          - not_null
+      - name: commit_date
+        description: "Commit timestamp"
+        tests:
+          - not_null
+  
+  - name: stg_releases
+    description: "Cleaned release data"
+    columns:
+      - name: release_id
+        description: "Unique release identifier"
+        tests:
+          - unique
+          - not_null
+      - name: tag_name
+        description: "Release tag name"
+        tests:
+          - not_null
+  
+  - name: stg_stargazers
+    description: "Cleaned stargazer data"
+    columns:
+      - name: user_id
+        description: "User who starred"
+        tests:
+          - not_null
+      - name: starred_at
+        description: "When the star was added"
+        tests:
+          - not_null
+  
+  - name: stg_users
+    description: "Deduplicated user data from all sources"
+    columns:
+      - name: user_id
+        description: "Unique user identifier"
+        tests:
+          - unique
+          - not_null
+      - name: user_login
+        description: "GitHub username"
+        tests:
+          - not_null

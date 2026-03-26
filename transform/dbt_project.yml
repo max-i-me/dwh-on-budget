@@ -1,0 +1,68 @@
+name: 'github_analytics'
+version: '1.0.0'
+config-version: 2
+
+# Project profile
+profile: 'github_dwh'
+
+# Directories
+model-paths: ["models"]
+analysis-paths: ["analysis"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Model configurations
+models:
+  github_analytics:
+    # Staging models: bronze -> silver
+    staging:
+      +materialized: view
+      +schema: staging
+      +tags: ["staging"]
+    
+    # Intermediate models: silver enrichment
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+      +tags: ["intermediate"]
+    
+    # Mart models: gold layer
+    marts:
+      +materialized: table
+      +schema: marts
+      +tags: ["marts"]
+      
+      # Metrics are views for flexibility
+      metrics:
+        +materialized: view
+
+# Test configurations
+tests:
+  +store_failures: true
+  +schema: test_results
+
+# Documentation
+vars:
+  # Date spine configuration
+  date_spine_start: '2020-01-01'
+  date_spine_end: '2026-12-31'
+  
+  # Bot user patterns to filter
+  bot_patterns:
+    - 'bot'
+    - '[bot]'
+    - 'dependabot'
+    - 'github-actions'
+    - 'renovate'
+
+# Seeds
+seeds:
+  +schema: seeds
+  +quote_columns: false
