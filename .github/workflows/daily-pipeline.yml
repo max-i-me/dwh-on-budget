@@ -22,7 +22,7 @@ jobs:
       
       - name: Create .env file
         run: |
-          echo "DUCKDB_PATH=data/dwhonbudget.duckdb" > .env
+          echo "DUCKDB_PATH=${{ github.workspace }}/data/dwhonbudget.duckdb" > .env
 
       - name: Create data directory
         run: mkdir -p data
@@ -39,6 +39,15 @@ jobs:
           name: dwhonbudget
           path: data/
         continue-on-error: true
+
+      - name: Debug - Check directory structure
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Workspace: ${{ github.workspace }}"
+          echo "Contents of data/:"
+          ls -la data/ || echo "data/ directory is empty"
+          echo "Environment file:"
+          cat .env
       
       - name: Install dependencies
         run: make install
