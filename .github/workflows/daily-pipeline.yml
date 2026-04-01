@@ -46,12 +46,12 @@ jobs:
 
       - name: Create empty database if not exists
         run: |
-          if [ ! -f data/dwhonbudget.duckdb ]; then
-            python -c "import duckdb; duckdb.connect('data/dwhonbudget.duckdb').close()"
+          if [ ! -f ${{ github.workspace }}/data/dwhonbudget.duckdb ]; then
+            python -c "import duckdb; duckdb.connect('${{ github.workspace }}/data/dwhonbudget.duckdb').close()"
             echo "✅ Created new empty database"
           else
             echo "✅ Database already exists (downloaded from artifact)"
-            ls -lh data/dwhonbudget.duckdb
+            ls -lh ${{ github.workspace }}/data/dwhonbudget.duckdb
           fi
       
       - name: Run full pipeline
