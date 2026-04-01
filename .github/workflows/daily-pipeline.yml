@@ -1,0 +1,67 @@
+name: Daily Data Pipeline
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allows manual triggering from GitHub UI
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Create .env file
+        run: |
+          echo "DUCKDB_PATH=data/dwhonbudget.duckdb" > .env
+      
+      - name: Create dlt secrets
+        run: |
+          mkdir -p extract/.dlt
+          echo '[sources.github]' > extract/.dlt/secrets.toml
+          echo 'access_token = "${{ secrets.DLT_GITHUB_TOKEN }}"' >> extract/.dlt/secrets.toml
+      
+      - name: Download previous database
+        uses: actions/download-artifact@v4
+        with:
+          name: dwhonbudget
+          path: data/
+        continue-on-error: true
+      
+      - name: Install dependencies
+        run: make install
+      
+      - name: Run full pipeline
+        run: make run
+      
+      - name: Upload database
+        uses: actions/upload-artifact@v4
+        with:
+          name: dwhonbudget
+          path: data/*.duckdb
+          retention-days: 30
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{"text": "❌ Daily pipeline failed - <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View logs>"}'
+        continue-on-error: true
+      
+      - name: Notify on success
+        if: success()
+        run: |
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H 'Content-Type: application/json' \
+            -d '{"text": "✅ Daily pipeline completed successfully"}'
+        continue-on-error: true
