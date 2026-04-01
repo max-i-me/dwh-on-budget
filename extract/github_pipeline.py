@@ -17,7 +17,7 @@ project_root = Path(__file__).parent.parent
 load_dotenv(project_root / ".env")
 
 # Configuration
-DUCKDB_PATH = os.getenv("DUCKDB_PATH", "../data/dwhonbud.duckdb")
+DUCKDB_PATH = os.getenv("DUCKDB_PATH", "../data/dwhonbudget.duckdb")
 # Resolve to absolute path relative to project root
 if not os.path.isabs(DUCKDB_PATH):
     DUCKDB_PATH = str(project_root / DUCKDB_PATH)
