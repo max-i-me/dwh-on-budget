@@ -23,6 +23,7 @@ jobs:
       - name: Create .env file
         run: |
           echo "DUCKDB_PATH=${{ github.workspace }}/data/dwhonbudget.duckdb" > .env
+          cat .env
 
       - name: Create data directory
         run: mkdir -p data
@@ -40,17 +41,18 @@ jobs:
           path: data/
         continue-on-error: true
 
-      - name: Debug - Check directory structure
-        run: |
-          echo "Current directory: $(pwd)"
-          echo "Workspace: ${{ github.workspace }}"
-          echo "Contents of data/:"
-          ls -la data/ || echo "data/ directory is empty"
-          echo "Environment file:"
-          cat .env
-      
       - name: Install dependencies
         run: make install
+
+      - name: Create empty database if not exists
+        run: |
+          if [ ! -f data/dwhonbudget.duckdb ]; then
+            python -c "import duckdb; duckdb.connect('data/dwhonbudget.duckdb').close()"
+            echo "✅ Created new empty database"
+          else
+            echo "✅ Database already exists (downloaded from artifact)"
+            ls -lh data/dwhonbudget.duckdb
+          fi
       
       - name: Run full pipeline
         run: make run
