@@ -22,6 +22,15 @@ DUCKDB_PATH = os.getenv("DUCKDB_PATH", "../data/dwhonbudget.duckdb")
 if not os.path.isabs(DUCKDB_PATH):
     DUCKDB_PATH = str(project_root / DUCKDB_PATH)
 
+# Debug: Print the resolved path
+print(f"🔍 DEBUG: DUCKDB_PATH = {DUCKDB_PATH}")
+print(f"🔍 DEBUG: File exists = {Path(DUCKDB_PATH).exists()}")
+print(f"🔍 DEBUG: Parent dir exists = {Path(DUCKDB_PATH).parent.exists()}")
+if Path(DUCKDB_PATH).parent.exists():
+    print(f"🔍 DEBUG: Parent dir contents:")
+    for item in Path(DUCKDB_PATH).parent.iterdir():
+        print(f"     - {item.name} ({item.stat().st_size} bytes)")
+
 REPOS_CONFIG = Path(__file__).parent / "config" / "repos.yml"
 
 
