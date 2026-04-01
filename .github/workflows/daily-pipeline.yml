@@ -23,6 +23,9 @@ jobs:
       - name: Create .env file
         run: |
           echo "DUCKDB_PATH=data/dwhonbudget.duckdb" > .env
+
+      - name: Create data directory
+        run: mkdir -p data
       
       - name: Create dlt secrets
         run: |

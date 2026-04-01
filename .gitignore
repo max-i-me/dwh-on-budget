@@ -53,3 +53,4 @@ Thumbs.db
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
+extract/.dlt/secrets.toml
