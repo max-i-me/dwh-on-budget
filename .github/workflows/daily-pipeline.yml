@@ -26,7 +26,7 @@ jobs:
           cat .env
 
       - name: Create data directory
-        run: mkdir -p data
+        run: mkdir -p ${{ github.workspace }}/data
       
       - name: Create dlt secrets
         run: |
