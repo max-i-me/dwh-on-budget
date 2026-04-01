@@ -1,21 +1,6 @@
 """
 GitHub REST API source for dlt.
-
-This module implements extraction logic for 9 GitHub entity types:
-- Repositories (metadata)
-- Issues (excluding PRs)
-- Pull Requests
-- PR Reviews (child resource)
-- Issue/PR Comments
-- Commits
-- Releases
-- Stargazers (with timestamps)
-- Contributors
-
-Each resource implements appropriate incremental strategies:
-- Merge: Issues, PRs, Comments, Releases
-- Append: Commits, Stargazers, PR Reviews
-- Replace: Repositories, Contributors
+Extracts 9 entity types: repositories, issues, PRs, PR reviews, comments, commits, releases, stargazers, contributors.
 """
 
 import dlt
@@ -25,7 +10,6 @@ from datetime import datetime, timezone
 
 
 def _get_headers(access_token: str, accept: str = "application/vnd.github+json") -> dict:
-    """Generate GitHub API request headers."""
     return {
         "Authorization": f"Bearer {access_token}",
         "Accept": accept,
@@ -39,11 +23,7 @@ def _paginate_github_api(
     params: Optional[dict] = None,
     per_page: int = 100,
 ) -> Iterator[dict]:
-    """
-    Paginate through GitHub API results.
-    
-    Yields individual items from paginated responses.
-    """
+    """Paginate through GitHub API results."""
     params = params or {}
     params["per_page"] = per_page
     params["page"] = 1
@@ -53,16 +33,12 @@ def _paginate_github_api(
         response.raise_for_status()
         
         data = response.json()
-        
-        # Handle empty response
         if not data:
             break
         
-        # Yield each item
         for item in data:
             yield item
         
-        # Check if there are more pages
         if len(data) < per_page:
             break
         
@@ -80,13 +56,10 @@ def github_source(
     Main GitHub data source.
     
     Args:
-        owner: Repository owner (user or organization)
+        owner: Repository owner
         repo: Repository name
-        access_token: GitHub Personal Access Token (from secrets.toml)
-        initial_date: date to extract from
-
-    Returns:
-        List of dlt resources for extraction
+        access_token: GitHub Personal Access Token
+        initial_date: Start date for incremental extraction
     """
     
     base_url = f"https://api.github.com/repos/{owner}/{repo}"
@@ -97,14 +70,12 @@ def github_source(
         primary_key="id",
     )
     def repositories() -> Iterator[dict]:
-        """Extract repository metadata (full refresh)."""
+        """Extract repository metadata."""
         headers = _get_headers(access_token)
         response = requests.get(base_url, headers=headers)
         response.raise_for_status()
         
         repo_data = response.json()
-        
-        # Add explicit owner/repo for easier filtering
         repo_data["_owner"] = owner
         repo_data["_repo"] = repo
         
@@ -121,25 +92,18 @@ def github_source(
             initial_value=initial_date,
         )
     ) -> Iterator[dict]:
-        """
-        Extract issues (excluding PRs).
-        
-        Incremental: Merge on updated_at.
-        Note: GitHub's /issues endpoint returns both issues AND PRs.
-        We filter PRs in dbt staging layer.
-        """
+        """Extract issues (excludes PRs, filtered in dbt)."""
         headers = _get_headers(access_token)
         url = f"{base_url}/issues"
         
         params = {
-            "state": "all",  # Get both open and closed
+            "state": "all",
             "sort": "updated",
             "direction": "asc",
             "since": updated_at.last_value,
         }
         
         for issue in _paginate_github_api(url, headers, params):
-            # Add repo context
             issue["_owner"] = owner
             issue["_repo"] = repo
             yield issue
@@ -155,11 +119,7 @@ def github_source(
             initial_value=initial_date,
         )
     ) -> Iterator[dict]:
-        """
-        Extract pull requests.
-        
-        Incremental: Merge on updated_at.
-        """
+        """Extract pull requests."""
         headers = _get_headers(access_token)
         url = f"{base_url}/pulls"
         
@@ -170,14 +130,11 @@ def github_source(
         }
         
         for pr in _paginate_github_api(url, headers, params):
-            # Filter by incremental cursor
             if pr["updated_at"] < updated_at.last_value:
                 continue
             
-            # Add repo context
             pr["_owner"] = owner
             pr["_repo"] = repo
-            
             yield pr
     
     @dlt.resource(
@@ -186,35 +143,23 @@ def github_source(
         primary_key="id",
     )
     def pr_reviews() -> Iterator[dict]:
-        """
-        Extract PR reviews (child resource of pull_requests).
-        
-        Append-only: Reviews are immutable once submitted.
-        Note: This requires iterating through all PRs to get reviews.
-        
-        WARNING: PR reviews may not be accessible on public repos where you're
-        not a collaborator. This resource will skip inaccessible PRs.
-        """
+        """Extract PR reviews. Append-only since reviews are immutable."""
         headers = _get_headers(access_token)
         
-        # First, get all PR numbers
         prs_url = f"{base_url}/pulls"
         pr_numbers = []
         
         for pr in _paginate_github_api(prs_url, headers, {"state": "all"}):
             pr_numbers.append(pr["number"])
         
-        # Track statistics
         accessible_count = 0
         forbidden_count = 0
         
-        # Then get reviews for each PR
         for pr_number in pr_numbers:
             reviews_url = f"{base_url}/pulls/{pr_number}/reviews"
             
             try:
                 for review in _paginate_github_api(reviews_url, headers):
-                    # Add context
                     review["_owner"] = owner
                     review["_repo"] = repo
                     review["_pr_number"] = pr_number
@@ -222,20 +167,15 @@ def github_source(
                     accessible_count += 1
                     yield review
             except requests.HTTPError as e:
-                # Skip PRs that don't have reviews or are inaccessible
                 if e.response.status_code == 404:
-                    # PR has no reviews
                     continue
                 elif e.response.status_code == 403:
-                    # Forbidden - likely not a collaborator on public repo
                     forbidden_count += 1
                     continue
                 else:
-                    # Other errors should be raised
                     raise
         
-        # Log summary
-        print(f"   PR Reviews: {accessible_count} accessible, {forbidden_count} forbidden (not a collaborator)")
+        print(f"   PR Reviews: {accessible_count} accessible, {forbidden_count} forbidden")
     
     @dlt.resource(
         name="issue_comments",
@@ -248,11 +188,7 @@ def github_source(
             initial_value=initial_date,
         )
     ) -> Iterator[dict]:
-        """
-        Extract issue and PR comments.
-        
-        Incremental: Merge on updated_at.
-        """
+        """Extract issue and PR comments."""
         headers = _get_headers(access_token)
         url = f"{base_url}/issues/comments"
         
@@ -263,10 +199,8 @@ def github_source(
         }
         
         for comment in _paginate_github_api(url, headers, params):
-            # Add repo context
             comment["_owner"] = owner
             comment["_repo"] = repo
-            
             yield comment
     
     @dlt.resource(
@@ -280,12 +214,7 @@ def github_source(
             initial_value=initial_date,
         )
     ) -> Iterator[dict]:
-        """
-        Extract commits.
-        
-        Append-only: Commits are immutable.
-        Incremental on committer.date (not author.date for consistency).
-        """
+        """Extract commits. Append-only since commits are immutable."""
         headers = _get_headers(access_token)
         url = f"{base_url}/commits"
         
@@ -294,10 +223,8 @@ def github_source(
         }
         
         for commit in _paginate_github_api(url, headers, params):
-            # Add repo context
             commit["_owner"] = owner
             commit["_repo"] = repo
-            
             yield commit
     
     @dlt.resource(
@@ -311,23 +238,16 @@ def github_source(
             initial_value=initial_date,
         )
     ) -> Iterator[dict]:
-        """
-        Extract releases.
-        
-        Incremental: Merge on published_at.
-        """
+        """Extract releases."""
         headers = _get_headers(access_token)
         url = f"{base_url}/releases"
         
         for release in _paginate_github_api(url, headers):
-            # Filter by incremental cursor (published_at can be null for drafts)
             if release.get("published_at") and release["published_at"] < published_at.last_value:
                 continue
             
-            # Add repo context
             release["_owner"] = owner
             release["_repo"] = repo
-            
             yield release
     
     @dlt.resource(
@@ -341,22 +261,14 @@ def github_source(
             initial_value=initial_date,
         )
     ) -> Iterator[dict]:
-        """
-        Extract stargazers with timestamps.
-        
-        Append-only: Stars are events.
-        Requires special Accept header to get starred_at timestamp.
-        """
-        # Special header for timestamp data
+        """Extract stargazers with timestamps. Requires special Accept header."""
         headers = _get_headers(access_token, accept="application/vnd.github.star+json")
         url = f"{base_url}/stargazers"
         
         for star_event in _paginate_github_api(url, headers):
-            # Filter by incremental cursor
             if star_event["starred_at"] < starred_at.last_value:
                 continue
             
-            # Flatten structure
             star_data = {
                 "starred_at": star_event["starred_at"],
                 "user_id": star_event["user"]["id"],
@@ -374,16 +286,11 @@ def github_source(
         primary_key=["user_id", "_owner", "_repo"],
     )
     def contributors() -> Iterator[dict]:
-        """
-        Extract repository contributors.
-        
-        Full refresh: Contribution counts change frequently.
-        """
+        """Extract repository contributors. Full refresh since counts change frequently."""
         headers = _get_headers(access_token)
         url = f"{base_url}/contributors"
         
         for contributor in _paginate_github_api(url, headers):
-            # Flatten structure
             contrib_data = {
                 "user_id": contributor["id"],
                 "user_login": contributor["login"],
@@ -395,7 +302,6 @@ def github_source(
             
             yield contrib_data
     
-    # Return all resources
     return [
         repositories,
         issues,

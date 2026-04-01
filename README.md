@@ -1,68 +1,63 @@
 # GitHub Analytics Data Warehouse
 
-A modern data platform built with **dlt** (data load tool), **dbt** (data build tool), and **DuckDB**. This project demonstrates end-to-end data engineering best practices:
-   - incremental extraction
-   - medallion architecture (bronze → silver → gold)
-   - dimensional modeling
-   - comprehensive testing.
-   
-For a null cost, we find key aspects of the modern data stack ran entirely locally. The goal was to build a stack an seed-stage company could reuse.
+A modern data platform using **dlt**, **dbt**, and **DuckDB**. Demonstrates end-to-end data engineering with incremental extraction, medallion architecture, and dimensional modeling - all running locally at zero cost.
+
+Built for seed-stage startups that need analytics without the enterprise price tag.
 
 ## Architecture
 
 ```
-GitHub API → dlt (Extract) → DuckDB (Bronze) → dbt (Transform) → Analytics (Silver/Gold)
+GitHub API → dlt → DuckDB (Bronze) → dbt → Analytics (Silver/Gold)
 ```
 
-### Medallion Architecture
+### Automated Daily Refresh
 
-- **Bronze Layer** (`raw_github` schema): Raw data from GitHub API, loaded incrementally by dlt
-- **Silver Layer** (`staging` + `intermediate` models): Cleaned, typed, and enriched data
-- **Gold Layer** (`marts` models): Dimensional models (star schema) and business metrics
+The pipeline runs automatically every day at 2 AM UTC via GitHub Actions:
+- Extracts new data from GitHub API (incremental)
+- Transforms with dbt (staging → marts)
+- Runs data quality tests
+- Stores database as artifact for next run
+- Sends Slack notifications on success/failure
+
+Manual runs available via GitHub Actions UI.
+
+### Medallion Layers
+
+- **Bronze** (`raw_github`): Raw API data, incrementally loaded
+- **Silver** (staging models): Cleaned and typed
+- **Gold** (marts): Star schema with dimensions and facts
 
 ## Data Sources
 
-Extracting from GitHub REST API:
-- Repositories
-- Issues & Pull Requests
-- PR Reviews
-- Comments
-- Commits
-- Releases
-- Stargazers
-- Contributors
+GitHub REST API:
+- Repositories, Issues, Pull Requests
+- Reviews, Comments, Commits
+- Releases, Stargazers, Contributors
 
 ## Quick Start
 
 ### Prerequisites
 
 - Python 3.8+
-- GitHub Personal Access Token ([create one here](https://github.com/settings/tokens))
-  - Required scope: `public_repo` (read-only)
+- GitHub Personal Access Token with `public_repo` scope ([create one](https://github.com/settings/tokens))
 
 ### Setup
 
-1. **Clone and navigate to the project**
-   ```bash
-   cd dwh-on-budget
-   ```
-
-2. **Create virtual environment and install dependencies**
+1. Clone and install:
    ```bash
    make setup
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   source .venv/bin/activate
    make install
    ```
 
-3. **Configure environment**
+2. Configure environment:
    ```bash
    cp .env.example .env
-   # Edit .env and add your DuckDB address
+   # Edit .env with your DuckDB path
    ```
 
-4. **Configure dlt secrets**
+3. Add GitHub token:
    ```bash
-   # Create dlt secrets file
    mkdir -p extract/.dlt
    cat > extract/.dlt/secrets.toml << EOF
    [sources.github]
@@ -70,20 +65,16 @@ Extracting from GitHub REST API:
    EOF
    ```
 
-5. **Configure target repositories**
-   Edit `extract/config/repos.yml` to specify which repos to analyze.
+4. Configure repos in `extract/config/repos.yml`
 
-### Run the Pipeline
+### Run
 
 ```bash
-# Run full pipeline (extract + transform + test)
-make run
-
-# Or run steps individually
-make extract    # Extract data from GitHub
-make transform  # Run dbt transformations
-make test       # Run dbt tests
-make docs       # Generate and serve documentation
+make run          # Full pipeline
+make extract      # Just extraction
+make transform    # Just dbt
+make test         # Run tests
+make docs         # Generate docs
 ```
 
 ## Project Structure
@@ -116,88 +107,66 @@ make docs       # Generate and serve documentation
 
 ## Key Features
 
-### Extraction (dlt)
-- Incremental loading with replace/merge/append strategies
-- Automatic pagination handling
-- Rate limit management
-- Idempotent pipeline runs
+- **Incremental loading** with automatic pagination and rate limiting
+- **Star schema** with dimensions and facts
+- **Comprehensive testing** (generic + custom data quality tests)
+- **Full documentation** with lineage graphs
+- **Automated daily refresh** via GitHub Actions
 
-### Transformation (dbt)
-- Staging models with data cleaning and typing
-- Intermediate models for cross-entity joins
-- Star schema with dimensions and facts
-- Business metric calculations
-- Comprehensive testing (generic + custom)
-- Source freshness monitoring
-- Full documentation with data catalog
+## Data Models
 
-### Data Models
+**Dimensions:**
+- `dim_repositories` - Repository metadata
+- `dim_users` - User profiles
+- `dim_dates` - Date dimension
 
-#### Dimensions
-- `dim_repositories`: Repository attributes and metadata
-- `dim_users`: User/contributor profiles
-- `dim_dates`: Date dimension for time-series analysis
+**Facts:**
+- `fct_pull_requests` - PR lifecycle metrics
+- `fct_issues` - Issue tracking
+- `fct_commits` - Commit activity
+- `fct_stargazers` - Repository growth
 
-#### Facts
-- `fct_pull_requests`: PR lifecycle and metrics
-- `fct_issues`: Issue tracking and resolution
-- `fct_commits`: Commit activity
-- `fct_stargazers`: Repository growth over time
-
-#### Metrics
-- `pr_cycle_time`: Time-to-merge analysis
-- `contributor_engagement`: Contributor activity patterns
-- `release_velocity`: Release cadence and health
+**Metrics:**
+- PR cycle time analysis
+- Contributor engagement
+- Release velocity
 
 ## Testing
 
-The project includes comprehensive data quality tests:
+Comprehensive data quality tests:
+- Generic tests (unique, not_null, relationships)
+- Custom business logic validation
+- Source freshness checks
 
-- **Generic tests**: `unique`, `not_null`, `relationships` on all keys
-- **Custom tests**: Business logic validation (e.g., no negative cycle times)
-- **Source freshness**: Alerts on stale data
-
-Run tests with:
 ```bash
 make test
 ```
 
 ## Documentation
 
-Generate and browse the full data catalog:
 ```bash
-make docs
+make docs  # Starts local server with lineage graphs and data catalog
 ```
-
-This will start a local web server with:
-- Data lineage graphs
-- Column-level documentation
-- Test coverage
-- Model relationships
 
 ## Maintenance
 
 ```bash
-# Clean generated files and database
-make clean
-
-# Full reset (including virtual environment)
-make reset
+make clean   # Clean generated files
+make reset   # Full reset
 ```
 
-## Future Enhancements
+## Roadmap
 
-- [ ] Dagster orchestration for production scheduling
-- [ ] MotherDuck integration for cloud analytics
-- [ ] CI/CD pipeline with GitHub Actions
-- [ ] dbt Semantic Layer for standardized metrics
-- [ ] Multi-repo comparison dashboards
-- [ ] Jupyter notebooks for exploratory analysis
+- [x] GitHub Actions automation
+- [x] Multi-repository support
+- [ ] Metabase dashboards
+- [ ] MotherDuck integration
+- [ ] dbt Semantic Layer
 
 ## Contributing
 
-This is a portfolio project, but suggestions and feedback are welcome!
+Portfolio project - feedback welcome!
 
 ---
 
-**Built with ❤️ using dlt, dbt, and DuckDB**
+*Modern data stack for seed-stage startups*
