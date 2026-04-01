@@ -41,8 +41,7 @@ final as (
         i.is_closed,
         i.is_assigned,
         
-        -- Labels
-        i.label_list,
+        -- Labels (label_list removed - use stg_issue_labels for detailed label info)
         i.label_count,
         i.is_bug,
         i.is_enhancement,

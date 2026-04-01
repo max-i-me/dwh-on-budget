@@ -8,58 +8,58 @@ This data warehouse implements a modern **medallion architecture** (bronze → s
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          EXTRACTION LAYER                            │
-│                              (dlt)                                   │
+│                          EXTRACTION LAYER                           │
+│                              (dlt)                                  │
 ├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  GitHub REST API                                                     │
-│  ├── Repositories                                                    │
-│  ├── Issues                                                          │
-│  ├── Pull Requests                                                   │
-│  ├── Comments                                                        │
-│  ├── Commits                                                         │
-│  ├── Releases                                                        │
-│  ├── Stargazers                                                      │
-│  └── Contributors                                                    │
-│                                                                      │
-│  Incremental Loading Strategy:                                       │
+│                                                                     │
+│  GitHub REST API                                                    │
+│  ├── Repositories                                                   │
+│  ├── Issues                                                         │
+│  ├── Pull Requests     (#ed due to API rate limit)                  │
+│  ├── Comments                                                       │
+│  ├── Commits                                                        │
+│  ├── Releases                                                       │
+│  ├── Stargazers                                                     │
+│  └── Contributors                                                   │
+│                                                                     │
+│  Incremental Loading Strategy:                                      │
 │  • Merge: Issues, PRs, Comments, Releases (updated records)         │
 │  • Append: Commits, Stargazers (immutable events)                   │
 │  • Replace: Repositories, Contributors (full snapshots)             │
-│                                                                      │
-└──────────────────────────┬───────────────────────────────────────────┘
+│                                                                     │
+└──────────────────────────┬──────────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         BRONZE LAYER                                 │
-│                     (DuckDB: raw_github schema)                      │
+│                         BRONZE LAYER                                │
+│                     (DuckDB: raw_github schema)                     │
 ├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  Raw tables loaded by dlt:                                           │
-│  • repositories                                                      │
-│  • issues                                                            │
-│  • pull_requests                                                     │
-│  • issue_comments                                                    │
-│  • commits                                                           │
-│  • releases                                                          │
-│  • stargazers                                                        │
-│  • contributors                                                      │
-│                                                                      │
-│  Characteristics:                                                    │
+│                                                                     │
+│  Raw tables loaded by dlt:                                          │
+│  • repositories                                                     │
+│  • issues                                                           │
+│  • pull_requests (Commented due to rate limit)                      │
+│  • issue_comments                                                   │
+│  • commits                                                          │
+│  • releases                                                         │
+│  • stargazers                                                       │
+│  • contributors                                                     │
+│                                                                     │
+│  Characteristics:                                                   │
 │  • Raw JSON structures (flattened by dlt)                           │
-│  • Minimal transformation                                            │
-│  • Includes dlt metadata (_dlt_load_id, _dlt_id)                   │
+│  • Minimal transformation                                           │
+│  • Includes dlt metadata (_dlt_load_id, _dlt_id)                    │
 │  • Source of truth for all downstream transformations               │
-│                                                                      │
-└──────────────────────────┬───────────────────────────────────────────┘
+│                                                                     │
+└──────────────────────────┬──────────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         SILVER LAYER                                 │
-│                    (dbt: staging + intermediate)                     │
+│                         SILVER LAYER                                │
+│                    (dbt: staging + intermediate)                    │
 ├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  STAGING MODELS (1:1 with bronze)                                    │
+│                                                                     │
+│  STAGING MODELS (1:1 with bronze)                                   │
 │  ├── stg_repositories    → Clean, type, rename                      │
 │  ├── stg_issues          → Filter out PRs, standardize              │
 │  ├── stg_pull_requests   → Calculate is_merged flag                 │
@@ -68,51 +68,51 @@ This data warehouse implements a modern **medallion architecture** (bronze → s
 │  ├── stg_releases        → Filter drafts                            │
 │  ├── stg_stargazers      → Type timestamps                          │
 │  └── stg_users           → Deduplicate across sources, detect bots  │
-│                                                                      │
-│  INTERMEDIATE MODELS (enrichment & joins)                            │
+│                                                                     │
+│  INTERMEDIATE MODELS (enrichment & joins)                           │
 │  ├── int_issue_lifecycle       → Issue metrics + comment counts     │
 │  ├── int_pr_with_reviews       → PR metrics + review data           │
 │  └── int_contributor_activity  → Unified activity stream            │
-│                                                                      │
-│  Characteristics:                                                    │
-│  • Cleaned and typed data                                            │
-│  • Business logic applied                                            │
-│  • Cross-entity joins                                                │
+│                                                                     │
+│  Characteristics:                                                   │
+│  • Cleaned and typed data                                           │
+│  • Business logic applied                                           │
+│  • Cross-entity joins                                               │
 │  • Materialized as views (lightweight)                              │
-│                                                                      │
-└──────────────────────────┬───────────────────────────────────────────┘
+│                                                                     │
+└──────────────────────────┬──────────────────────────────────────────┘
                            │
                            ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          GOLD LAYER                                  │
-│                      (dbt: marts schema)                             │
+│                          GOLD LAYER                                 │
+│                      (dbt: marts schema)                            │
 ├─────────────────────────────────────────────────────────────────────┤
-│                                                                      │
-│  DIMENSIONAL MODEL (Star Schema)                                     │
-│                                                                      │
-│  DIMENSIONS                                                          │
+│                                                                     │
+│  DIMENSIONAL MODEL (Star Schema)                                    │
+│                                                                     │
+│  DIMENSIONS                                                         │
 │  ├── dim_repositories  → Repository attributes                      │
 │  ├── dim_users         → User/contributor profiles                  │
-│  └── dim_dates         → Date dimension (2020-2026)                 │
-│                                                                      │
-│  FACTS                                                               │
+│  └── dim_dates         → Date dimension (2026-2026)                 │
+│                                                                     │
+│  FACTS                                                              │
 │  ├── fct_pull_requests → PR lifecycle & metrics                     │
 │  ├── fct_issues        → Issue lifecycle & metrics                  │
 │  ├── fct_commits       → Commit activity                            │
 │  └── fct_stargazers    → Repository growth events                   │
-│                                                                      │
-│  METRICS (Aggregated Views)                                          │
+│                                                                     │
+│  METRICS (Aggregated Views)                                         │
 │  ├── pr_cycle_time           → Weekly/monthly PR metrics            │
 │  ├── contributor_engagement  → Monthly contributor patterns         │
 │  └── release_velocity        → Release cadence analysis             │
-│                                                                      │
-│  Characteristics:                                                    │
+│                                                                     │
+│  Characteristics:                                                   │
 │  • Dimensions & facts materialized as tables                        │
 │  • Metrics materialized as views                                    │
 │  • Surrogate keys for all dimensions                                │
 │  • Foreign key relationships enforced via tests                     │
 │  • Optimized for analytical queries                                 │
-│                                                                      │
+│                                                                     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -178,45 +178,30 @@ This data warehouse implements a modern **medallion architecture** (bronze → s
 ## Star Schema Design
 
 ```
-                    ┌─────────────────┐
-                    │   dim_dates     │
-                    ├─────────────────┤
-                    │ date_key (PK)   │
-                    │ date            │
-                    │ year            │
-                    │ month           │
-                    │ week_of_year    │
-                    │ is_weekend      │
-                    └─────────────────┘
-                            ▲
-                            │
-         ┌──────────────────┼──────────────────┐
-         │                  │                  │
-         │                  │                  │
-┌────────┴────────┐  ┌──────┴──────────┐  ┌───┴──────────────┐
-│ dim_repositories│  │ dim_users       │  │                  │
-├─────────────────┤  ├─────────────────┤  │                  │
-│ repo_key (PK)   │  │ user_key (PK)   │  │                  │
-│ repository_name │  │ user_login      │  │                  │
-│ owner_login     │  │ is_bot          │  │                  │
-│ language        │  └─────────────────┘  │                  │
-│ stars_count     │           ▲            │                  │
-└─────────────────┘           │            │                  │
-         ▲                    │            │                  │
-         │                    │            │                  │
-         │         ┌──────────┴────────────┴─────────┐        │
-         │         │                                  │        │
-         │         │   fct_pull_requests              │        │
-         │         ├──────────────────────────────────┤        │
-         └─────────┤ pr_key (PK)                      │        │
-                   │ repo_key (FK) ───────────────────┘        │
-                   │ author_key (FK) ─────────────────────────┘
-                   │ created_date_key (FK)
-                   │ merged_date_key (FK)
-                   │ is_merged
-                   │ time_to_merge_hours
-                   │ comment_count
-                   └──────────────────────────────────┘
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ dim_repositories│  │ dim_users       │  │   dim_dates     │  
+├─────────────────┤  ├─────────────────┤  ├─────────────────┤
+│ repo_key (PK)   │  │ user_key (PK)   │  │ date_key (PK)   │
+│ repository_name │  │ user_login      │  │ date            │
+│ owner_login     │  │ is_bot          │  │ year            │
+│ language        │  │                 │  │ month           │
+│ stars_count     │  │                 │  │ week_of_year    │ 
+│                 │  │                 │  │ is_weekend      │                   
+└─────────────────┘  └─────────────────┘  └─────────────────┘                   
+         ▲                    ▲                     ▲         
+         │         ┌──────────┴───────────┐         │
+         │         │                      │         │  
+         │         │   fct_pull_requests  │         │
+         │         ├──────────────────────┤         │
+         └─────────┤ pr_key (PK)          │─────────┘
+                   │ repo_key (FK)        │
+                   │ author_key (FK)      │
+                   │ created_date_key (FK)│
+                   │ merged_date_key (FK) │
+                   │ is_merged            │
+                   │ time_to_merge_hours  │
+                   │ comment_count        │
+                   └──────────────────────┘
 
 Similar patterns for:
 - fct_issues
@@ -254,12 +239,6 @@ Similar patterns for:
 - **Tables**: Dimensions and facts (pre-computed, fast queries)
 - **Incremental**: Not used (small dataset, full refresh is fast)
 
-### DuckDB Optimizations
-- Columnar storage (efficient for analytics)
-- Automatic compression
-- In-memory processing for small datasets
-- Single-file database (portable, easy to backup)
-
 ### Query Performance
 - Surrogate keys for efficient joins
 - Date dimension for time-series queries
@@ -278,20 +257,20 @@ Similar patterns for:
 1. **More Repositories**: Scale to 10-20 repos
 2. **MotherDuck**: Move to cloud DuckDB for remote access
 3. **Incremental dbt Models**: Use incremental materialization for facts
-4. **Dagster Orchestration**: Replace Makefile with proper orchestration
+4. **Orchestration**: Replace Makefile with proper orchestration
 5. **CI/CD**: Automated testing and deployment
 6. **dbt Semantic Layer**: Standardized metric definitions
 
 ## Technology Stack
 
-| Layer | Tool | Purpose |
-|-------|------|---------|
-| Extraction | dlt | Incremental data loading from GitHub API |
-| Storage | DuckDB | Embedded analytical database |
-| Transformation | dbt | SQL-based data transformation |
-| Testing | dbt tests | Data quality validation |
-| Orchestration | Makefile | Simple pipeline execution |
-| Documentation | dbt docs | Auto-generated data catalog |
+| Layer          | Tool      | Purpose                                  |
+|----------------|-----------|------------------------------------------|
+| Extraction     | dlt       | Incremental data loading from GitHub API |
+| Storage        | DuckDB    | Embedded analytical database             |
+| Transformation | dbt       | SQL-based data transformation            |
+| Testing        | dbt tests | Data quality validation                  |
+| Orchestration  | Makefile  | Simple pipeline execution                |
+| Documentation  | dbt docs  | Auto-generated data catalog              |
 
 ## Best Practices Demonstrated
 

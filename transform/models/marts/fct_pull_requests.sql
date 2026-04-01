@@ -44,8 +44,7 @@ final as (
         pr.is_closed,
         pr.is_closed_without_merge,
         
-        -- Labels
-        pr.label_list,
+        -- Labels (label_list removed - use stg_pr_labels for detailed label info)
         pr.label_count,
         
         -- Metrics

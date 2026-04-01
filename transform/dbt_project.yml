@@ -51,7 +51,7 @@ tests:
 # Documentation
 vars:
   # Date spine configuration
-  date_spine_start: '2020-01-01'
+  date_spine_start: '2026-01-01'
   date_spine_end: '2026-12-31'
   
   # Bot user patterns to filter

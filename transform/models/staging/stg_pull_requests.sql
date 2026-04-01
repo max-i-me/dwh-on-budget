@@ -13,10 +13,13 @@ renamed as (
         -- Primary key
         id as pull_request_id,
         node_id as pull_request_node_id,
+        _dlt_id as pr_dlt_id,  -- For joining with child tables
         
         -- PR identification
         number as pr_number,
-        repository_full_name,
+        _owner as repository_owner,
+        _repo as repository_name,
+        _owner || '/' || _repo as repository_full_name,
         
         -- Content
         title as pr_title,
@@ -28,19 +31,18 @@ renamed as (
         draft as is_draft,
         
         -- People
-        user_login as author_login,
-        user_id as author_id,
-        assignee_login,
-        assignee_id,
+        user__login as author_login,
+        user__id as author_id,
+        assignee__login as assignee_login,
+        assignee__id as assignee_id,
         
-        -- Labels (array)
-        labels as label_list,
+        -- Labels moved to separate staging model (stg_pr_labels)
         
         -- Git references
-        head_ref,
-        head_sha,
-        base_ref,
-        base_sha,
+        head__ref as head_ref,
+        head__sha as head_sha,
+        base__ref as base_ref,
+        base__sha as base_sha,
         merge_commit_sha,
         
         -- Merge status

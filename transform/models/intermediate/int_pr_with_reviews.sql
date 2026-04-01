@@ -9,20 +9,29 @@ with pull_requests as (
     select * from {{ ref('stg_pull_requests') }}
 ),
 
+pr_labels as (
+    select
+        pr_dlt_id,
+        count(*) as label_count
+    from {{ ref('stg_pr_labels') }}
+    group by pr_dlt_id
+),
+
+-- NOTE: PR reviews are disabled in extraction to avoid rate limits
+-- This CTE returns empty set but maintains schema compatibility
 reviews as (
     select
-        repository_owner,
-        repository_name,
-        pull_request_number,
-        count(*) as review_count,
-        count(distinct reviewer_user_id) as unique_reviewers,
-        min(submitted_at) as first_review_at,
-        max(submitted_at) as last_review_at,
-        sum(case when review_state = 'APPROVED' then 1 else 0 end) as approval_count,
-        sum(case when review_state = 'CHANGES_REQUESTED' then 1 else 0 end) as changes_requested_count,
-        sum(case when review_state = 'COMMENTED' then 1 else 0 end) as comment_review_count
-    from {{ ref('stg_pr_reviews') }}
-    group by repository_owner, repository_name, pull_request_number
+        cast(null as varchar) as repository_owner,
+        cast(null as varchar) as repository_name,
+        cast(null as bigint) as pull_request_number,
+        cast(0 as bigint) as review_count,
+        cast(0 as bigint) as unique_reviewers,
+        cast(null as timestamp) as first_review_at,
+        cast(null as timestamp) as last_review_at,
+        cast(0 as bigint) as approval_count,
+        cast(0 as bigint) as changes_requested_count,
+        cast(0 as bigint) as comment_review_count
+    where 1=0  -- Empty result set
 ),
 
 comments as (
@@ -46,7 +55,6 @@ enriched as (
         pr.is_draft,
         pr.author_login,
         pr.author_id,
-        pr.label_list,
         pr.created_at,
         pr.updated_at,
         pr.closed_at,
@@ -97,8 +105,8 @@ enriched as (
             else false 
         end as is_closed_without_merge,
         
-        -- Label analysis
-        array_length(pr.label_list) as label_count
+        -- Label analysis (from separate label table)
+        coalesce(l.label_count, 0) as label_count
         
     from pull_requests pr
     left join reviews r
@@ -108,6 +116,8 @@ enriched as (
     left join comments c
         on pr.repository_full_name = c.repository_full_name
         and pr.pr_number = c.pr_number
+    left join pr_labels l
+        on pr.pr_dlt_id = l.pr_dlt_id
 )
 
 select * from enriched

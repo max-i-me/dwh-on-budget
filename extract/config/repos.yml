@@ -4,14 +4,14 @@ repositories:
   - owner: duckdb
     name: duckdb
     enabled: true
-    initial_date: "2025-01-01T00:00:00Z"
+    initial_date: "2026-01-01T00:00:00Z"
   
   - owner: dbt-labs
     name: dbt-core
     enabled: true
-    initial_date: "2025-01-01T00:00:00Z"
+    initial_date: "2026-01-01T00:00:00Z"
   
   - owner: dlt-hub
     name: dlt
     enabled: true
-    initial_date: "2025-01-01T00:00:00Z"
+    initial_date: "2026-01-01T00:00:00Z"

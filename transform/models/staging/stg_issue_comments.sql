@@ -15,16 +15,17 @@ renamed as (
         node_id as comment_node_id,
         
         -- Comment association
-        issue_number,
-        repository_full_name,
+        -- Extract issue number from issue_url (e.g., "https://api.github.com/repos/owner/repo/issues/123")
+        cast(regexp_extract(issue_url, '\/issues\/(\d+)$', 1) as integer) as issue_number,
+        _owner || '/' || _repo as repository_full_name,
         
         -- Content
         body as comment_body,
         length(body) as comment_length,
         
         -- Author
-        user_login as author_login,
-        user_id as author_id,
+        user__login as author_login,
+        user__id as author_id,
         
         -- Timestamps
         created_at::timestamp as created_at,

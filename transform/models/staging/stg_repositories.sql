@@ -13,11 +13,12 @@ renamed as (
         -- Primary key
         id as repository_id,
         node_id as repository_node_id,
+        _dlt_id as repository_dlt_id,  -- For joining with child tables
         
         -- Repository identification
-        owner_login,
-        owner_id,
-        repo_name as repository_name,
+        owner__login as owner_login,
+        owner__id as owner_id,
+        name as repository_name,
         full_name as repository_full_name,
         
         -- Metadata
@@ -44,7 +45,7 @@ renamed as (
         -- Technical details
         language as primary_language,
         default_branch,
-        license_name,
+        license__name as license_name,
         
         -- Features
         has_issues,
@@ -53,8 +54,7 @@ renamed as (
         has_pages,
         has_downloads,
         
-        -- Topics (array)
-        topics,
+        -- Topics moved to separate staging model (stg_repository_topics)
         
         -- Metadata
         current_timestamp as _loaded_at

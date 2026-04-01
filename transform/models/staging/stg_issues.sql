@@ -13,10 +13,11 @@ renamed as (
         -- Primary key
         id as issue_id,
         node_id as issue_node_id,
+        _dlt_id as issue_dlt_id,  -- For joining with child tables
         
         -- Issue identification
         number as issue_number,
-        repository_full_name,
+        _owner || '/' || _repo as repository_full_name,
         
         -- Content
         title as issue_title,
@@ -27,16 +28,15 @@ renamed as (
         locked as is_locked,
         
         -- People
-        user_login as author_login,
-        user_id as author_id,
-        assignee_login,
-        assignee_id,
+        user__login as author_login,
+        user__id as author_id,
+        assignee__login as assignee_login,
+        assignee__id as assignee_id,
         
-        -- Labels (array)
-        labels as label_list,
+        -- Labels moved to separate staging model (stg_issue_labels)
         
         -- Metrics
-        comments_count,
+        comments as comments_count,
         
         -- Timestamps
         created_at::timestamp as created_at,

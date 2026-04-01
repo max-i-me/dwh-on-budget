@@ -400,7 +400,7 @@ def github_source(
         repositories,
         issues,
         pull_requests,
-        pr_reviews,
+        #pr_reviews, # Disabled due to rate limiting
         issue_comments,
         commits,
         releases,

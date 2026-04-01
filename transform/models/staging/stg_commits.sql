@@ -15,33 +15,33 @@ renamed as (
         node_id as commit_node_id,
         
         -- Repository
-        repository_full_name,
+        _owner || '/' || _repo as repository_full_name,
         
         -- GitHub users (may be null if not linked to GitHub account)
-        author_login,
-        author_id,
-        committer_login,
-        committer_id,
+        author__login as author_login,
+        author__id as author_id,
+        committer__login as committer_login,
+        committer__id as committer_id,
         
         -- Git commit info
-        commit_author_name,
-        commit_author_email,
-        committer_name,
-        committer_email,
+        commit__author__name as commit_author_name,
+        commit__author__email as commit_author_email,
+        commit__committer__name as committer_name,
+        commit__committer__email as committer_email,
         
         -- Message
-        message as commit_message,
-        length(message) as message_length,
+        commit__message as commit_message,
+        length(commit__message) as message_length,
         
         -- References
-        tree_sha,
+        commit__tree__sha as tree_sha,
         
         -- Metrics
-        comment_count,
+        commit__comment_count as comment_count,
         
         -- Timestamps
-        commit_date::timestamp as commit_date,
-        committer_date::timestamp as committer_date,
+        commit__author__date::timestamp as commit_date,
+        commit__committer__date::timestamp as committer_date,
         
         -- Metadata
         current_timestamp as _loaded_at

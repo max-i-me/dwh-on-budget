@@ -9,6 +9,16 @@ with issues as (
     select * from {{ ref('stg_issues') }}
 ),
 
+issue_labels as (
+    select
+        issue_dlt_id,
+        count(*) as label_count,
+        max(case when lower(label_name) = 'bug' then 1 else 0 end) as has_bug_label,
+        max(case when lower(label_name) in ('enhancement', 'feature') then 1 else 0 end) as has_enhancement_label
+    from {{ ref('stg_issue_labels') }}
+    group by issue_dlt_id
+),
+
 comments as (
     select
         repository_full_name,
@@ -28,7 +38,6 @@ enriched as (
         i.issue_state,
         i.author_login,
         i.author_id,
-        i.label_list,
         i.created_at,
         i.updated_at,
         i.closed_at,
@@ -54,22 +63,17 @@ enriched as (
         case when i.closed_at is not null then true else false end as is_closed,
         case when i.assignee_id is not null then true else false end as is_assigned,
         
-        -- Label analysis
-        array_length(i.label_list) as label_count,
-        case 
-            when array_contains(i.label_list, 'bug') then true 
-            else false 
-        end as is_bug,
-        case 
-            when array_contains(i.label_list, 'enhancement') 
-                or array_contains(i.label_list, 'feature') then true 
-            else false 
-        end as is_enhancement
+        -- Label analysis (from separate label table)
+        coalesce(l.label_count, 0) as label_count,
+        case when l.has_bug_label = 1 then true else false end as is_bug,
+        case when l.has_enhancement_label = 1 then true else false end as is_enhancement
         
     from issues i
     left join comments c
         on i.repository_full_name = c.repository_full_name
         and i.issue_number = c.issue_number
+    left join issue_labels l
+        on i.issue_dlt_id = l.issue_dlt_id
 )
 
 select * from enriched

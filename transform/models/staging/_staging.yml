@@ -3,7 +3,6 @@ version: 2
 sources:
   - name: raw_github
     description: "Raw data extracted from GitHub API via dlt"
-    database: main
     schema: raw_github
     
     # Source freshness checks
@@ -45,15 +44,14 @@ sources:
               - not_null
       
       - name: pr_reviews
-        description: "Pull request reviews"
+        description: "Pull request reviews (DISABLED - not extracted to avoid rate limits)"
         identifier: pr_reviews
         loaded_at_field: submitted_at
+        config:
+          enabled: false
         columns:
           - name: id
             description: "Unique review ID"
-            tests:
-              - unique
-              - not_null
       
       - name: issue_comments
         description: "Comments on issues and pull requests"
@@ -103,6 +101,34 @@ sources:
         columns:
           - name: user_id
             description: "Contributor user ID"
+            tests:
+              - not_null
+      
+      # Child tables for array fields
+      - name: issues__labels
+        description: "Labels assigned to issues (child table)"
+        identifier: issues__labels
+        columns:
+          - name: _dlt_parent_id
+            description: "Link to parent issue _dlt_id"
+            tests:
+              - not_null
+      
+      - name: pull_requests__labels
+        description: "Labels assigned to pull requests (child table)"
+        identifier: pull_requests__labels
+        columns:
+          - name: _dlt_parent_id
+            description: "Link to parent pull request _dlt_id"
+            tests:
+              - not_null
+      
+      - name: repositories__topics
+        description: "Topics assigned to repositories (child table)"
+        identifier: repositories__topics
+        columns:
+          - name: _dlt_parent_id
+            description: "Link to parent repository _dlt_id"
             tests:
               - not_null
 
@@ -235,5 +261,42 @@ models:
           - not_null
       - name: user_login
         description: "GitHub username"
+        tests:
+          - not_null
+  
+  # Child table staging models
+  - name: stg_issue_labels
+    description: "Labels assigned to issues"
+    columns:
+      - name: issue_dlt_id
+        description: "Link to parent issue (via _dlt_id)"
+        tests:
+          - not_null
+      - name: label_name
+        description: "Label name"
+        tests:
+          - not_null
+  
+  - name: stg_pr_labels
+    description: "Labels assigned to pull requests"
+    columns:
+      - name: pr_dlt_id
+        description: "Link to parent pull request (via _dlt_id)"
+        tests:
+          - not_null
+      - name: label_name
+        description: "Label name"
+        tests:
+          - not_null
+  
+  - name: stg_repository_topics
+    description: "Topics assigned to repositories"
+    columns:
+      - name: repository_dlt_id
+        description: "Link to parent repository (via _dlt_id)"
+        tests:
+          - not_null
+      - name: topic_name
+        description: "Topic name"
         tests:
           - not_null

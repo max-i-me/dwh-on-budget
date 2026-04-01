@@ -13,7 +13,7 @@ renamed as (
         -- Keys
         user_id,
         user_login,
-        repository_full_name,
+        _owner || '/' || _repo as repository_full_name,
         
         -- Timestamp
         starred_at::timestamp as starred_at,

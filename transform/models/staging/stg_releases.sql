@@ -12,11 +12,12 @@ cleaned as (
         
         -- Foreign keys
         {{ dbt_utils.generate_surrogate_key(['_owner', '_repo']) }} as repository_key,
-        author.id as author_user_id,
+        author__id as author_user_id,
         
         -- Release identifiers
         _owner as repository_owner,
         _repo as repository_name,
+        _owner || '/' || _repo as repository_full_name,
         tag_name,
         target_commitish,
         name as release_name,

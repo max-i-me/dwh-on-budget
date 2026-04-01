@@ -72,7 +72,7 @@ def run_pipeline():
         print(f"   Initial extraction date: {initial_date}")
         try:
             # Get GitHub token from dlt secrets
-            # This will look for: extract/config/.dlt/secrets.toml
+            # This will look for: extract/.dlt/secrets.toml
             source = github_source(
                 owner=owner,
                 repo=name,
@@ -101,7 +101,7 @@ def run_pipeline():
         tables = [
             "repositories",
             "issues",
-            "pull_requests",
+            #"pull_requests",
             "issue_comments",
             "commits",
             "releases",

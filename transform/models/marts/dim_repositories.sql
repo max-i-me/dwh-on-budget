@@ -28,7 +28,7 @@ final as (
         primary_language,
         default_branch,
         license_name,
-        topics,
+        -- topics removed - use stg_repository_topics for detailed topic info
         
         -- Statistics (snapshot at load time)
         stargazers_count,
