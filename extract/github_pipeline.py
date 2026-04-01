@@ -22,14 +22,14 @@ DUCKDB_PATH = os.getenv("DUCKDB_PATH", "../data/dwhonbudget.duckdb")
 if not os.path.isabs(DUCKDB_PATH):
     DUCKDB_PATH = str(project_root / DUCKDB_PATH)
 
-# Debug: Print the resolved path
-print(f"🔍 DEBUG: DUCKDB_PATH = {DUCKDB_PATH}")
-print(f"🔍 DEBUG: File exists = {Path(DUCKDB_PATH).exists()}")
-print(f"🔍 DEBUG: Parent dir exists = {Path(DUCKDB_PATH).parent.exists()}")
+# Debug: Print the resolved path (with flush=True for CI environments)
+print(f"🔍 DEBUG: DUCKDB_PATH = {DUCKDB_PATH}", flush=True)
+print(f"🔍 DEBUG: File exists = {Path(DUCKDB_PATH).exists()}", flush=True)
+print(f"🔍 DEBUG: Parent dir exists = {Path(DUCKDB_PATH).parent.exists()}", flush=True)
 if Path(DUCKDB_PATH).parent.exists():
-    print(f"🔍 DEBUG: Parent dir contents:")
+    print(f"🔍 DEBUG: Parent dir contents:", flush=True)
     for item in Path(DUCKDB_PATH).parent.iterdir():
-        print(f"     - {item.name} ({item.stat().st_size} bytes)")
+        print(f"     - {item.name} ({item.stat().st_size} bytes)", flush=True)
 
 REPOS_CONFIG = Path(__file__).parent / "config" / "repos.yml"
 
@@ -51,7 +51,12 @@ def load_repos_config() -> list:
 def run_pipeline():
     """Execute the GitHub data extraction pipeline."""
     
-    print("Starting GitHub Analytics extraction pipeline...")
+    print("Starting GitHub Analytics extraction pipeline...", flush=True)
+    
+    # Ensure parent directory exists for DuckDB file
+    db_path = Path(DUCKDB_PATH)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    print(f"✅ Ensured parent directory exists: {db_path.parent}", flush=True)
     
     # Load target repositories
     repos = load_repos_config()
@@ -59,9 +64,9 @@ def run_pipeline():
     if not repos:
         raise ValueError("No repositories configured in repos.yml")
     
-    print(f"📊 Configured to extract data from {len(repos)} repository(ies):")
+    print(f"📊 Configured to extract data from {len(repos)} repository(ies):", flush=True)
     for repo in repos:
-        print(f"   - {repo['owner']}/{repo['name']}")
+        print(f"   - {repo['owner']}/{repo['name']}", flush=True)
     
     # Configure dlt pipeline
     pipeline = dlt.pipeline(

@@ -54,6 +54,27 @@ jobs:
             ls -lh ${{ github.workspace }}/data/dwhonbudget.duckdb
           fi
       
+      - name: Verify database file exists
+        run: |
+          echo "📁 Checking database file..."
+          echo "Expected path: ${{ github.workspace }}/data/dwhonbudget.duckdb"
+          echo "Current directory: $(pwd)"
+          echo "Workspace directory: ${{ github.workspace }}"
+          echo ""
+          echo "Contents of data/ directory:"
+          ls -lah ${{ github.workspace }}/data/ || echo "❌ data/ directory not found"
+          echo ""
+          if [ -f ${{ github.workspace }}/data/dwhonbudget.duckdb ]; then
+            echo "✅ Database file exists"
+            ls -lh ${{ github.workspace }}/data/dwhonbudget.duckdb
+            file ${{ github.workspace }}/data/dwhonbudget.duckdb
+          else
+            echo "❌ Database file NOT found!"
+            echo "Attempting to list all .duckdb files in workspace:"
+            find ${{ github.workspace }} -name "*.duckdb" -ls || echo "No .duckdb files found"
+            exit 1
+          fi
+      
       - name: Run full pipeline
         run: make run
       
